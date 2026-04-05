@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>De of Het?</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --accent: #e94560;
+    --correct: #2ecc71;
+    --wrong: #e74c3c;
+    --text: #eee;
+    --muted: #8899aa;
+    --de-color: #3498db;
+    --het-color: #e67e22;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  header {
+    width: 100%; max-width: 480px;
+    padding: 20px 20px 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 700; }
+  .streak-badge {
+    background: var(--card); padding: 4px 12px; border-radius: 20px;
+    font-size: 0.85rem; display: flex; align-items: center; gap: 4px;
+  }
+
+  .stats-bar {
+    width: 100%; max-width: 480px; padding: 0 20px 16px;
+    display: flex; gap: 12px; font-size: 0.8rem; color: var(--muted);
+  }
+  .stats-bar span { display: flex; align-items: center; gap: 4px; }
+
+  .het-progress {
+    width: 100%; max-width: 480px; padding: 0 20px 12px;
+  }
+  .het-progress-bar {
+    background: var(--card); border-radius: 12px; padding: 12px 16px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .het-progress-bar:hover { background: #1a2744; }
+  .het-progress-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .het-progress-header .label {
+    font-size: 0.8rem; color: var(--muted); font-weight: 600;
+  }
+  .het-progress-header .count {
+    font-size: 0.8rem; color: var(--het-color); font-weight: 700;
+  }
+  .het-track {
+    width: 100%; height: 8px; background: rgba(255,255,255,0.06);
+    border-radius: 4px; overflow: hidden; display: flex;
+  }
+  .het-fill-mastered {
+    height: 100%; background: var(--correct); transition: width 0.4s;
+  }
+  .het-fill-seen {
+    height: 100%; background: var(--het-color); opacity: 0.5; transition: width 0.4s;
+  }
+  .het-legend {
+    display: flex; gap: 14px; margin-top: 8px; font-size: 0.7rem; color: var(--muted);
+  }
+  .het-legend span { display: flex; align-items: center; gap: 4px; }
+  .het-legend .dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  }
+  .het-detail { display: none; margin-top: 10px; }
+  .het-detail.open { display: block; }
+  .het-detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  }
+  .het-detail-card {
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+    padding: 10px; text-align: center;
+  }
+  .het-detail-card .val { font-size: 1.3rem; font-weight: 700; }
+  .het-detail-card .lbl { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+
+  .card-area {
+    flex: 1; width: 100%; max-width: 480px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 20px; gap: 24px;
+  }
+
+  .word-card {
+    background: var(--card); border-radius: 20px;
+    padding: 48px 32px 40px; text-align: center; width: 100%;
+    position: relative; transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .word-card.correct { animation: flashCorrect 0.4s; }
+  .word-card.wrong { animation: flashWrong 0.5s; }
+  @keyframes flashCorrect {
+    0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.6); }
+    50% { box-shadow: 0 0 0 12px rgba(46,204,113,0); transform: scale(1.02); }
+    100% { box-shadow: none; }
+  }
+  @keyframes flashWrong {
+    0%,100% { transform: translateX(0); }
+    15% { transform: translateX(-8px); } 30% { transform: translateX(8px); }
+    45% { transform: translateX(-6px); } 60% { transform: translateX(6px); }
+    75% { transform: translateX(-3px); } 90% { transform: translateX(3px); }
+  }
+
+  .word-text { font-size: 2.8rem; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+  .word-translation { font-size: 1rem; color: var(--muted); min-height: 1.5em; }
+  .word-sr-info {
+    position: absolute; top: 12px; right: 16px;
+    font-size: 0.7rem; color: var(--muted); opacity: 0.5;
+  }
+
+  .feedback-text { font-size: 1.1rem; font-weight: 600; min-height: 1.6em; text-align: center; }
+
+  .buttons { display: flex; gap: 16px; width: 100%; }
+  .btn {
+    flex: 1; padding: 20px; border: none; border-radius: 16px;
+    font-size: 1.6rem; font-weight: 700; cursor: pointer;
+    transition: transform 0.1s, opacity 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn-de { background: var(--de-color); color: white; }
+  .btn-het { background: var(--het-color); color: white; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  .progress-bar { width: 100%; max-width: 480px; padding: 0 20px 8px; }
+  .progress-track {
+    width: 100%; height: 4px; background: var(--card);
+    border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--de-color), var(--het-color));
+    transition: width 0.3s; border-radius: 2px;
+  }
+
+  .session-complete { text-align: center; padding: 40px 20px; max-width: 480px; width: 100%; }
+  .session-complete h2 { font-size: 1.8rem; margin-bottom: 20px; }
+  .score-circle {
+    width: 140px; height: 140px; border-radius: 50%; background: var(--card);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    margin: 0 auto 24px; border: 4px solid var(--correct);
+  }
+  .score-circle .pct { font-size: 2.4rem; font-weight: 700; }
+  .score-circle .label { font-size: 0.8rem; color: var(--muted); }
+
+  .mistakes-list { text-align: left; margin: 20px 0; width: 100%; }
+  .mistakes-list h3 { font-size: 1rem; color: var(--muted); margin-bottom: 10px; }
+  .mistake-item {
+    background: var(--card); padding: 10px 16px; border-radius: 10px;
+    margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .mistake-item .word { font-weight: 600; }
+  .mistake-item .correct-answer {
+    font-size: 0.9rem; padding: 2px 10px; border-radius: 8px;
+  }
+  .mistake-item .correct-answer.de { background: var(--de-color); }
+  .mistake-item .correct-answer.het { background: var(--het-color); }
+
+  .session-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+    margin: 20px 0; width: 100%;
+  }
+  .stat-card {
+    background: var(--card); padding: 14px 10px; border-radius: 12px; text-align: center;
+  }
+  .stat-card .val { font-size: 1.4rem; font-weight: 700; }
+  .stat-card .lbl { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  .btn-primary {
+    background: var(--accent); color: white; border: none;
+    padding: 16px 32px; border-radius: 14px; font-size: 1.1rem;
+    font-weight: 600; cursor: pointer; margin-top: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+
+  .settings-toggle {
+    background: none; border: none; color: var(--muted);
+    font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+  }
+  .settings-panel {
+    width: 100%; max-width: 480px; padding: 0 20px; display: none;
+  }
+  .settings-panel.open { display: block; }
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.9rem;
+  }
+  .setting-row select, .setting-row input[type=number] {
+    background: var(--card); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 6px 10px; font-size: 0.85rem;
+  }
+  .setting-row label { color: var(--muted); }
+  .btn-reset {
+    background: rgba(231,76,60,0.15); color: var(--wrong);
+    border: 1px solid rgba(231,76,60,0.3); padding: 8px 16px;
+    border-radius: 10px; font-size: 0.85rem; cursor: pointer; margin-top: 10px;
+  }
+
+  .hidden { display: none !important; }
+  .key-hint {
+    font-size: 0.75rem; color: var(--muted); opacity: 0.5;
+    text-align: center; padding-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#x1F1F3;&#x1F1F1; De of Het?</h1>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="streak-badge" id="streak">&#x1F525; 0</div>
+    <button class="settings-toggle" id="settingsBtn" title="Settings">&#x2699;&#xFE0F;</button>
+  </div>
+</header>
+
+<div class="settings-panel" id="settingsPanel">
+  <div class="setting-row">
+    <label>Words per session</label>
+    <select id="sessionSize">
+      <option value="25">25</option>
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="0">All (no limit)</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <label>Show translations</label>
+    <select id="showTranslations">
+      <option value="always">Always</option>
+      <option value="after" selected>After answer</option>
+      <option value="never">Never</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <label>Priority</label>
+    <select id="priority">
+      <option value="sr" selected>Spaced repetition (weak words first)</option>
+      <option value="random">Pure random</option>
+      <option value="het-only">Het-woorden only</option>
+    </select>
+  </div>
+  <div class="setting-row">
+    <button class="btn-reset" id="resetProgress">Reset all progress</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <span>&#x1F4CA; <span id="totalSessions">0</span> sessions</span>
+  <span>&#x2705; <span id="totalCorrect">0</span>/<span id="totalAnswered">0</span></span>
+  <span>&#x1F3AF; <span id="accuracy">0</span>%</span>
+</div>
+
+<div class="het-progress" id="hetProgress">
+  <div class="het-progress-bar" onclick="toggleHetDetail()">
+    <div class="het-progress-header">
+      <span class="label">het-woorden mastery</span>
+      <span class="count"><span id="hetMastered">0</span>/183 mastered</span>
+    </div>
+    <div class="het-track">
+      <div class="het-fill-mastered" id="hetFillMastered" style="width:0%"></div>
+      <div class="het-fill-seen" id="hetFillSeen" style="width:0%"></div>
+    </div>
+    <div class="het-legend">
+      <span><span class="dot" style="background:var(--correct)"></span> Mastered (3+ correct)</span>
+      <span><span class="dot" style="background:var(--het-color);opacity:0.5"></span> Seen</span>
+      <span><span class="dot" style="background:rgba(255,255,255,0.06)"></span> Unseen</span>
+    </div>
+    <div class="het-detail" id="hetDetail">
+      <div class="het-detail-grid">
+        <div class="het-detail-card">
+          <div class="val" id="hetSeen">0</div>
+          <div class="lbl">seen at least once</div>
+        </div>
+        <div class="het-detail-card">
+          <div class="val" id="hetCorrectOnce">0</div>
+          <div class="lbl">correct at least once</div>
+        </div>
+        <div class="het-detail-card">
+          <div class="val" id="hetMasteredDetail">0</div>
+          <div class="lbl">correct 3+ times</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="progress-bar" id="progressBar">
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="card-area" id="drillArea">
+  <div class="word-card" id="wordCard">
+    <div class="word-sr-info" id="srInfo"></div>
+    <div class="word-text" id="wordText">laden...</div>
+    <div class="word-translation" id="wordTranslation"></div>
+  </div>
+  <div class="feedback-text" id="feedback">&nbsp;</div>
+  <div class="buttons">
+    <button class="btn btn-de" id="btnDe">de</button>
+    <button class="btn btn-het" id="btnHet">het</button>
+  </div>
+</div>
+
+<div class="card-area hidden" id="completeArea"></div>
+
+<div class="key-hint">&larr; / &rarr; arrow keys &nbsp;or&nbsp; D / H</div>
+
+<script>
+var HET_WORDS = [
+  ["adres","address"],["antwoord","answer"],["bed","bed"],["bedrag","amount"],
+  ["bericht","message"],["beroep","profession"],["been","leg"],["begin","beginning"],
+  ["bestand","file"],["bewijs","proof"],["bezoek","visit"],["bloed","blood"],
+  ["boek","book"],["bos","forest"],["brood","bread"],["cadeau","gift"],
+  ["caf\u00e9","cafe"],["centrum","center"],["cijfer","grade"],["concert","concert"],
+  ["contact","contact"],["contract","contract"],["dak","roof"],["deel","part"],
+  ["dieet","diet"],["dier","animal"],["ding","thing"],["diploma","diploma"],
+  ["doel","goal"],["dorp","village"],["ei","egg"],["eiland","island"],
+  ["einde","end"],["punt","point"],["eten","food"],["examen","exam"],
+  ["feest","party"],["formulier","form"],["fruit","fruit"],["gas","gas"],
+  ["gat","hole"],["gebied","area"],["gebouw","building"],["gedicht","poem"],
+  ["gedrag","behaviour"],["geduld","patience"],["geheim","secret"],
+  ["geheugen","memory"],["geld","money"],["geloof","belief"],["geluid","sound"],
+  ["geluk","luck"],["gereedschap","tools"],["gesprek","conversation"],
+  ["gevaar","danger"],["gevoel","feeling"],["geweld","violence"],
+  ["gewicht","weight"],["gezicht","face"],["gif","poison"],["glas","glass"],
+  ["gordijn","curtain"],["goud","gold"],["gras","grass"],["haar","hair"],
+  ["hart","heart"],["hek","fence"],["hoofd","head"],["hout","wood"],
+  ["huis","house"],["huiswerk","homework"],["huwelijk","marriage"],
+  ["ijs","ice"],["insect","insect"],["instrument","instrument"],
+  ["internet","internet"],["jaar","year"],["journaal","journal"],
+  ["kamp","camp"],["kantoor","office"],["kasteel","castle"],["kind","child"],
+  ["klimaat","climate"],["konijn","rabbit"],["kruid","herb"],["kruis","cross"],
+  ["land","country"],["landschap","landscape"],["leger","army"],["leven","life"],
+  ["lichaam","body"],["licht","light"],["lijk","corpse"],["loon","wage"],
+  ["meer","lake"],["menu","menu"],["merk","brand"],["mes","knife"],
+  ["milieu","environment"],["model","model"],["moment","moment"],
+  ["museum","museum"],["nadeel","disadvantage"],["voordeel","advantage"],
+  ["nieuws","news"],["nummer","number"],["ondergoed","underwear"],
+  ["onderwerp","subject"],["onderwijs","education"],["onderzoek","research"],
+  ["ongeluk","accident"],["ontbijt","breakfast"],["ontwerp","design"],
+  ["oog","eye"],["oor","ear"],["oosten","east"],["westen","west"],
+  ["noorden","north"],["zuiden","south"],["oppervlak","surface"],
+  ["paard","horse"],["pad","path"],["papier","paper"],["park","park"],
+  ["paspoort","passport"],["percentage","percentage"],["plan","plan"],
+  ["plastic","plastic"],["plezier","fun"],["potlood","pencil"],
+  ["probleem","problem"],["proces","process"],["product","product"],
+  ["programma","program"],["project","project"],["protest","protest"],
+  ["raam","window"],["restaurant","restaurant"],["resultaat","result"],
+  ["rijbewijs","driving licence"],["salaris","salary"],["sap","juice"],
+  ["schrift","notebook"],["shirt","shirt"],["signaal","signal"],
+  ["standbeeld","statue"],["station","station"],["stopcontact","socket"],
+  ["stoplicht","traffic light"],["strand","beach"],["stuk","piece"],
+  ["succes","success"],["systeem","system"],["team","team"],
+  ["terrein","terrain"],["theater","theater"],["toetsenbord","keyboard"],
+  ["toilet","toilet"],["totaal","total"],["touw","rope"],["uur","hour"],
+  ["veld","field"],["verhaal","story"],["verkeer","traffic"],
+  ["verleden","past"],["verschil","difference"],["vervoer","transport"],
+  ["vierkant","square"],["virus","virus"],["visum","visa"],["vlees","meat"],
+  ["vliegtuig","airplane"],["voorbeeld","example"],["voorstel","proposal"],
+  ["vraagteken","question mark"],["wachtwoord","password"],["water","water"],
+  ["weekend","weekend"],["weer","weather"],["werk","work"],["woord","word"],
+  ["zaad","seed"],["zelfvertrouwen","confidence"],["ziekenhuis","hospital"],
+  ["zout","salt"],["zweet","sweat"],["zwembad","pool"]
+];
+
+var DE_WORDS = [
+  // From your quiz
+  ["tafel","table"],["stoel","chair"],["naam","name"],["regen","rain"],
+  ["sleutel","key"],["fiets","bicycle"],["bloem","flower"],["straat","street"],
+  ["krant","newspaper"],["vraag","question"],["trein","train"],["berg","mountain"],
+  ["maan","moon"],["fles","bottle"],["tuin","garden"],["muur","wall"],
+  ["deur","door"],["zee","sea"],["school","school"],["brug","bridge"],
+  ["auto","car"],["lamp","lamp"],["rekening","bill"],["dag","day"],
+  ["stad","city"],["brief","letter"],["bus","bus"],["vogel","bird"],
+  ["prijs","price"],["winkel","shop"],["rivier","river"],["ster","star"],
+  ["keuken","kitchen"],["tas","bag"],["boom","tree"],["nacht","night"],
+  ["hond","dog"],["wolk","cloud"],["vloer","floor"],["bank","couch/bank"],
+  ["reden","reason"],["lucht","air/sky"],["kamer","room"],["mening","opinion"],
+  ["maand","month"],["sneeuw","snow"],["zon","sun"],["tijd","time"],
+  ["kat","cat"],["hand","hand"],["aarde","earth"],["appel","apple"],
+  // People and family
+  ["vader","father"],["moeder","mother"],["broer","brother"],["zus","sister"],
+  ["zoon","son"],["dochter","daughter"],["vrouw","woman/wife"],["man","man/husband"],
+  ["vriend","friend (m)"],["vriendin","friend (f)"],["buur","neighbour"],
+  ["koning","king"],["koningin","queen"],["dokter","doctor"],
+  ["leraar","teacher (m)"],["lerares","teacher (f)"],["student","student"],
+  ["verpleegster","nurse"],["politieagent","police officer"],
+  ["kok","cook"],["boer","farmer"],["bakker","baker"],["chauffeur","driver"],
+  // Body
+  ["arm","arm"],["borst","chest"],["buik","belly"],["huid","skin"],
+  ["keel","throat"],["knie","knee"],["lip","lip"],["long","lung"],
+  ["neus","nose"],["rug","back"],["schouder","shoulder"],["tand","tooth"],
+  ["teen","toe"],["tong","tongue"],["vinger","finger"],["voet","foot"],
+  // Home and objects
+  ["badkamer","bathroom"],["bibliotheek","library"],["douche","shower"],
+  ["flat","apartment"],["gang","hallway"],["kast","closet"],["klok","clock"],
+  ["koelkast","fridge"],["pan","pan"],["plant","plant"],["spiegel","mirror"],
+  ["televisie","television"],["tent","tent"],["trap","stairs"],["wasmachine","washing machine"],
+  // Food and drink
+  ["druif","grape"],["kaas","cheese"],["melk","milk"],["peer","pear"],
+  ["rijst","rice"],["soep","soup"],["thee","tea"],["tomaat","tomato"],
+  ["ui","onion"],["wijn","wine"],["wortel","carrot"],["boter","butter"],
+  ["suiker","sugar"],["peper","pepper"],["aardappel","potato"],["boon","bean"],
+  // Nature and weather
+  ["bloesem","blossom"],["heuvel","hill"],["kust","coast"],["vijver","pond"],
+  ["golf","wave"],["storm","storm"],["wind","wind"],["wolk","cloud"],
+  ["haven","harbour"],["wei","meadow"],["beek","brook"],["rots","rock"],
+  // Clothing and personal
+  ["broek","trousers"],["das","tie"],["jas","coat"],["jurk","dress"],
+  ["muts","hat/beanie"],["rok","skirt"],["schoen","shoe"],["sok","sock"],
+  ["ring","ring"],["bril","glasses"],["paraplu","umbrella"],["portemonnee","wallet"],
+  // Abstract and general
+  ["avond","evening"],["baan","job"],["cursus","course"],["euro","euro"],
+  ["film","movie"],["geur","smell"],["grens","border"],["groep","group"],
+  ["hal","hall"],["hoek","corner"],["kans","chance"],["kaart","card/map"],
+  ["klacht","complaint"],["klas","class"],["kleur","colour"],["knop","button"],
+  ["koe","cow"],["koffer","suitcase"],["kop","cup/head"],["les","lesson"],
+  ["lijst","list"],["markt","market"],["mens","human"],["meter","meter"],
+  ["middag","afternoon"],["minuut","minute"],["muis","mouse"],
+  ["ochtend","morning"],["oefening","exercise"],["oorlog","war"],
+  ["orde","order"],["organisatie","organisation"],["pijn","pain"],
+  ["politie","police"],["regel","rule"],["reis","trip"],
+  ["slaap","sleep"],["sport","sport"],["stem","voice"],["straf","punishment"],
+  ["studie","study"],["taal","language"],["tekst","text"],
+  ["vacht","fur"],["verjaardag","birthday"],["vis","fish"],["vlag","flag"],
+  ["waarheid","truth"],["wand","wall (interior)"],["wet","law"],
+  ["winter","winter"],["zak","pocket/bag"],["zin","sentence/sense"],
+  ["zomer","summer"],["bal","ball"],
+  // More common de-words
+  ["afspraak","appointment"],["behandeling","treatment"],["beslissing","decision"],
+  ["betaling","payment"],["bevolking","population"],["beweging","movement"],
+  ["bijdrage","contribution"],["bodem","soil"],["brand","fire"],
+  ["computer","computer"],["dame","lady"],["dienst","service"],
+  ["doos","box"],["eenheid","unity"],["ervaring","experience"],
+  ["fabriek","factory"],["gemeente","municipality"],["geschiedenis","history"],
+  ["gezondheid","health"],["haven","harbour"],["herinnering","memory"],
+  ["industrie","industry"],["ingang","entrance"],["inrichting","furnishing"],
+  ["instelling","institution"],["kennis","knowledge"],["kern","core"],
+  ["keuze","choice"],["kracht","force/power"],["kunst","art"],
+  ["leeftijd","age"],["liefde","love"],["macht","power"],
+  ["menigte","crowd"],["mogelijkheid","possibility"],["natuur","nature"],
+  ["omgeving","surroundings"],["ontwikkeling","development"],
+  ["overheid","government"],["periode","period"],["pers","press"],
+  ["plicht","duty"],["praktijk","practice"],["raad","council"],
+  ["rand","edge"],["richting","direction"],["rust","rest/peace"],
+  ["ruimte","space"],["sfeer","atmosphere"],["situatie","situation"],
+  ["smaak","taste"],["snelheid","speed"],["steun","support"],
+  ["stichting","foundation"],["strijd","struggle"],["taak","task"],
+  ["techniek","technique"],["uitleg","explanation"],["uitvoering","execution"],
+  ["verandering","change"],["vergadering","meeting"],["verhouding","ratio"],
+  ["voorwaarde","condition"],["vrijheid","freedom"],["waarde","value"],
+  ["wetenschap","science"],["woning","dwelling"],["zorg","care"]
+];
+
+// Deduplicate
+var dedup = function(arr) {
+  var seen = {};
+  return arr.filter(function(pair) {
+    if (seen[pair[0]]) return false;
+    seen[pair[0]] = true;
+    return true;
+  });
+};
+DE_WORDS = dedup(DE_WORDS);
+
+var ALL_WORDS = HET_WORDS.map(function(p) {
+  return { word: p[0], article: "het", translation: p[1] };
+}).concat(DE_WORDS.map(function(p) {
+  return { word: p[0], article: "de", translation: p[1] };
+}));
+
+// ---- Spaced repetition storage ----
+var SR_KEY = "dehet_sr_v1";
+var STATS_KEY = "dehet_stats_v1";
+
+function loadSR() {
+  try { return JSON.parse(localStorage.getItem(SR_KEY)) || {}; } catch(e) { return {}; }
+}
+function saveSR(data) { localStorage.setItem(SR_KEY, JSON.stringify(data)); }
+function loadStats() {
+  try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {sessions:0,correct:0,total:0}; }
+  catch(e) { return {sessions:0,correct:0,total:0}; }
+}
+function saveStats(s) { localStorage.setItem(STATS_KEY, JSON.stringify(s)); }
+
+function getSR(word) {
+  var data = loadSR();
+  return data[word] || {correct:0, wrong:0, streak:0, interval:1, lastSeen:0};
+}
+function updateSR(word, wasCorrect) {
+  var data = loadSR();
+  var sr = data[word] || {correct:0, wrong:0, streak:0, interval:1, lastSeen:0};
+  if (wasCorrect) { sr.correct++; sr.streak++; sr.interval = Math.min(sr.interval * 2.2, 100); }
+  else { sr.wrong++; sr.streak = 0; sr.interval = 1; }
+  sr.lastSeen = Date.now();
+  data[word] = sr;
+  saveSR(data);
+}
+
+// ---- Session state ----
+var sessionQueue = [];
+var sessionIdx = 0;
+var sessionCorrect = 0;
+var sessionMistakes = [];
+var currentWord = null;
+var answered = false;
+var streak = 0;
+var bestStreak = 0;
+var sessionStartTime = Date.now();
+
+function interleave(arr) {
+  // Prevent long runs of the same article (max 2 in a row).
+  // Walk through, and when we'd get a 3rd consecutive same-article,
+  // swap with the nearest different-article word ahead.
+  for (var i = 2; i < arr.length; i++) {
+    if (arr[i].article === arr[i-1].article && arr[i].article === arr[i-2].article) {
+      for (var j = i + 1; j < arr.length; j++) {
+        if (arr[j].article !== arr[i].article) {
+          var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+          break;
+        }
+      }
+    }
+  }
+  return arr;
+}
+
+function buildQueue() {
+  var size = parseInt(document.getElementById("sessionSize").value) || 0;
+  var mode = document.getElementById("priority").value;
+  var srData = loadSR();
+  var pool;
+
+  if (mode === "het-only") {
+    pool = ALL_WORDS.filter(function(w) { return w.article === "het"; });
+  } else {
+    pool = ALL_WORDS.slice();
+  }
+
+  if (mode === "sr") {
+    var now = Date.now();
+    pool.forEach(function(w) {
+      var sr = srData[w.word] || {correct:0, wrong:0, streak:0, interval:1, lastSeen:0};
+      var timeSince = (now - sr.lastSeen) / (1000*60*60);
+      var errorRate = sr.wrong / Math.max(1, sr.correct + sr.wrong);
+      w._priority = (errorRate * 5) + (timeSince / sr.interval) - (sr.streak * 0.5) + Math.random() * 0.3;
+    });
+    pool.sort(function(a,b) { return b._priority - a._priority; });
+  } else {
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+  }
+
+  var result = size > 0 ? pool.slice(0, size) : pool;
+  if (mode !== "het-only") result = interleave(result);
+  return result;
+}
+
+function showWord() {
+  if (sessionIdx >= sessionQueue.length) { showComplete(); return; }
+  currentWord = sessionQueue[sessionIdx];
+  answered = false;
+
+  document.getElementById("wordText").textContent = currentWord.word;
+  var transEl = document.getElementById("wordTranslation");
+  var showTrans = document.getElementById("showTranslations").value;
+  transEl.textContent = showTrans === "always" ? currentWord.translation : "";
+
+  document.getElementById("feedback").innerHTML = "&nbsp;";
+  document.getElementById("wordCard").className = "word-card";
+
+  var sr = getSR(currentWord.word);
+  var srEl = document.getElementById("srInfo");
+  if (sr.correct + sr.wrong > 0) {
+    var acc = Math.round(sr.correct / (sr.correct + sr.wrong) * 100);
+    srEl.textContent = acc + "% \u00b7 " + (sr.correct + sr.wrong) + "\u00d7";
+  } else { srEl.textContent = "new"; }
+
+  document.getElementById("btnDe").disabled = false;
+  document.getElementById("btnHet").disabled = false;
+  updateProgress();
+}
+
+function answer(choice) {
+  if (answered) return;
+  answered = true;
+  var correct = choice === currentWord.article;
+  updateSR(currentWord.word, correct);
+
+  var card = document.getElementById("wordCard");
+  var fb = document.getElementById("feedback");
+  var transEl = document.getElementById("wordTranslation");
+
+  if (document.getElementById("showTranslations").value === "after") {
+    transEl.textContent = currentWord.translation;
+  }
+
+  if (correct) {
+    sessionCorrect++;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    card.className = "word-card correct";
+    fb.innerHTML = '<span style="color:var(--correct)">\u2713 ' + currentWord.article + " " + currentWord.word + "</span>";
+  } else {
+    streak = 0;
+    card.className = "word-card wrong";
+    fb.innerHTML = '<span style="color:var(--wrong)">\u2717 ' + currentWord.article + " " + currentWord.word + "</span>";
+    sessionMistakes.push(currentWord);
+  }
+
+  document.getElementById("streak").innerHTML = "&#x1F525; " + streak;
+  document.getElementById("btnDe").disabled = true;
+  document.getElementById("btnHet").disabled = true;
+  sessionIdx++;
+  setTimeout(showWord, correct ? 500 : 1200);
+}
+
+function updateProgress() {
+  var pct = sessionQueue.length > 0 ? (sessionIdx / sessionQueue.length * 100) : 0;
+  document.getElementById("progressFill").style.width = pct + "%";
+}
+
+function showComplete() {
+  var stats = loadStats();
+  stats.sessions++;
+  stats.correct += sessionCorrect;
+  stats.total += sessionQueue.length;
+  saveStats(stats);
+
+  var pct = sessionQueue.length > 0 ? Math.round(sessionCorrect / sessionQueue.length * 100) : 0;
+  var elapsed = Math.round((Date.now() - sessionStartTime) / 1000);
+  var mins = Math.floor(elapsed / 60);
+  var secs = elapsed % 60;
+  var borderColor = pct >= 90 ? "var(--correct)" : pct >= 70 ? "var(--het-color)" : "var(--wrong)";
+
+  var html = '<div class="session-complete">' +
+    "<h2>Goed gedaan! &#x1F389;</h2>" +
+    '<div class="score-circle" style="border-color:' + borderColor + '">' +
+    '<div class="pct">' + pct + "%</div>" +
+    '<div class="label">' + sessionCorrect + "/" + sessionQueue.length + "</div></div>" +
+    '<div class="session-stats">' +
+    '<div class="stat-card"><div class="val">' + mins + ":" + (secs < 10 ? "0" : "") + secs + '</div><div class="lbl">time</div></div>' +
+    '<div class="stat-card"><div class="val">' + bestStreak + '</div><div class="lbl">best streak</div></div>' +
+    '<div class="stat-card"><div class="val">' + sessionMistakes.length + '</div><div class="lbl">mistakes</div></div></div>';
+
+  if (sessionMistakes.length > 0) {
+    html += '<div class="mistakes-list"><h3>Words to review:</h3>';
+    var seen = {};
+    sessionMistakes.forEach(function(m) {
+      if (seen[m.word]) return;
+      seen[m.word] = true;
+      html += '<div class="mistake-item">' +
+        '<span class="word">' + m.word + ' <span style="color:var(--muted);font-weight:400;font-size:0.85rem">' + m.translation + "</span></span>" +
+        '<span class="correct-answer ' + m.article + '">' + m.article + "</span></div>";
+    });
+    html += "</div>";
+  }
+
+  html += '<button class="btn-primary" onclick="startSession()">Nog een keer! &#x1F504;</button></div>';
+
+  document.getElementById("drillArea").classList.add("hidden");
+  var ca = document.getElementById("completeArea");
+  ca.innerHTML = html;
+  ca.classList.remove("hidden");
+  updateGlobalStats();
+}
+
+function startSession() {
+  sessionQueue = buildQueue();
+  sessionIdx = 0;
+  sessionCorrect = 0;
+  sessionMistakes = [];
+  streak = 0;
+  bestStreak = 0;
+  sessionStartTime = Date.now();
+  document.getElementById("streak").innerHTML = "&#x1F525; 0";
+  document.getElementById("completeArea").classList.add("hidden");
+  document.getElementById("drillArea").classList.remove("hidden");
+  document.getElementById("settingsPanel").classList.remove("open");
+  showWord();
+  updateGlobalStats();
+}
+
+function toggleHetDetail() {
+  document.getElementById("hetDetail").classList.toggle("open");
+}
+
+function updateHetProgress() {
+  var srData = loadSR();
+  var seen = 0, correctOnce = 0, mastered = 0;
+  HET_WORDS.forEach(function(pair) {
+    var sr = srData[pair[0]];
+    if (sr && (sr.correct + sr.wrong) > 0) {
+      seen++;
+      if (sr.correct >= 1) correctOnce++;
+      if (sr.correct >= 3) mastered++;
+    }
+  });
+  var total = HET_WORDS.length; // 183
+  document.getElementById("hetMastered").textContent = mastered;
+  document.getElementById("hetSeen").textContent = seen;
+  document.getElementById("hetCorrectOnce").textContent = correctOnce;
+  document.getElementById("hetMasteredDetail").textContent = mastered;
+  document.getElementById("hetFillMastered").style.width = (mastered / total * 100) + "%";
+  document.getElementById("hetFillSeen").style.width = ((seen - mastered) / total * 100) + "%";
+}
+
+function updateGlobalStats() {
+  var stats = loadStats();
+  document.getElementById("totalSessions").textContent = stats.sessions;
+  document.getElementById("totalCorrect").textContent = stats.correct;
+  document.getElementById("totalAnswered").textContent = stats.total;
+  document.getElementById("accuracy").textContent = stats.total > 0
+    ? Math.round(stats.correct / stats.total * 100) : 0;
+  updateHetProgress();
+}
+
+// Settings
+document.getElementById("settingsBtn").onclick = function() {
+  document.getElementById("settingsPanel").classList.toggle("open");
+};
+document.getElementById("resetProgress").onclick = function() {
+  if (confirm("Reset all progress? This cannot be undone.")) {
+    localStorage.removeItem(SR_KEY);
+    localStorage.removeItem(STATS_KEY);
+    updateGlobalStats();
+    startSession();
+  }
+};
+["sessionSize","showTranslations","priority"].forEach(function(id) {
+  document.getElementById(id).addEventListener("change", function() {
+    localStorage.setItem("dehet_settings", JSON.stringify({
+      sessionSize: document.getElementById("sessionSize").value,
+      showTranslations: document.getElementById("showTranslations").value,
+      priority: document.getElementById("priority").value
+    }));
+  });
+});
+try {
+  var saved = JSON.parse(localStorage.getItem("dehet_settings"));
+  if (saved) {
+    if (saved.sessionSize) document.getElementById("sessionSize").value = saved.sessionSize;
+    if (saved.showTranslations) document.getElementById("showTranslations").value = saved.showTranslations;
+    if (saved.priority) document.getElementById("priority").value = saved.priority;
+  }
+} catch(e) {}
+
+// Buttons
+document.getElementById("btnDe").onclick = function() { answer("de"); };
+document.getElementById("btnHet").onclick = function() { answer("het"); };
+
+// Keyboard
+document.addEventListener("keydown", function(e) {
+  if (answered) return;
+  if (e.key === "ArrowLeft" || e.key === "d" || e.key === "D") { e.preventDefault(); answer("de"); }
+  else if (e.key === "ArrowRight" || e.key === "h" || e.key === "H") { e.preventDefault(); answer("het"); }
+});
+
+updateGlobalStats();
+startSession();
+</script>
+</body>
+</html>
