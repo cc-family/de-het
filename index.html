@@ -529,20 +529,56 @@ var bestStreak = 0;
 var sessionStartTime = Date.now();
 
 function interleave(arr) {
-  // Prevent long runs of the same article (max 2 in a row).
-  // Walk through, and when we'd get a 3rd consecutive same-article,
-  // swap with the nearest different-article word ahead.
-  for (var i = 2; i < arr.length; i++) {
-    if (arr[i].article === arr[i-1].article && arr[i].article === arr[i-2].article) {
-      for (var j = i + 1; j < arr.length; j++) {
-        if (arr[j].article !== arr[i].article) {
-          var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
-          break;
-        }
-      }
+  // Split into two shuffled buckets, then merge with constrained randomness.
+  // Prevents 3+ consecutive same-article words while staying unpredictable.
+  var de = [], het = [];
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].article === "het") het.push(arr[i]);
+    else de.push(arr[i]);
+  }
+  // Fisher-Yates each bucket
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
     }
   }
-  return arr;
+  shuffle(de); shuffle(het);
+
+  var result = [];
+  var run = 0;        // how many consecutive same-article we've placed
+  var lastArt = null;
+  var di = 0, hi = 0;
+
+  while (di < de.length || hi < het.length) {
+    var canDe  = di < de.length && !(run >= 2 && lastArt === "de");
+    var canHet = hi < het.length && !(run >= 2 && lastArt === "het");
+
+    // If neither is allowed (one bucket empty + at run limit), force from what's left
+    if (!canDe && !canHet) {
+      if (di < de.length) { canDe = true; }
+      else { canHet = true; }
+    }
+
+    var pick;
+    if (canDe && canHet) {
+      // Weighted coin flip based on remaining ratio (keeps distribution natural)
+      pick = Math.random() < (de.length - di) / ((de.length - di) + (het.length - hi)) ? "de" : "het";
+    } else {
+      pick = canDe ? "de" : "het";
+    }
+
+    if (pick === "de") {
+      result.push(de[di++]);
+      run = (lastArt === "de") ? run + 1 : 1;
+      lastArt = "de";
+    } else {
+      result.push(het[hi++]);
+      run = (lastArt === "het") ? run + 1 : 1;
+      lastArt = "het";
+    }
+  }
+  return result;
 }
 
 function buildQueue() {
