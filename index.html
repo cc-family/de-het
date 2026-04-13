@@ -551,8 +551,8 @@ function interleave(arr) {
   var di = 0, hi = 0;
 
   while (di < de.length || hi < het.length) {
-    var canDe  = di < de.length && !(run >= 2 && lastArt === "de");
-    var canHet = hi < het.length && !(run >= 2 && lastArt === "het");
+    var canDe  = di < de.length && !(run >= 3 && lastArt === "de");
+    var canHet = hi < het.length && !(run >= 3 && lastArt === "het");
 
     // If neither is allowed (one bucket empty + at run limit), force from what's left
     if (!canDe && !canHet) {
